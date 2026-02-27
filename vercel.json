@@ -1,0 +1,17 @@
+{
+    "framework": null,
+    "installCommand": "echo skip",
+    "buildCommand": "echo skip",
+    "outputDirectory": ".vercel_out",
+    "functions": {
+        "api/proxy.js": {
+            "runtime": "@vercel/edge"
+        }
+    },
+    "rewrites": [
+        {
+            "source": "/(.*)",
+            "destination": "/api/proxy"
+        }
+    ]
+}

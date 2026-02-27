@@ -1,0 +1,9 @@
+node_modules
+vendor
+storage
+database
+docker
+.git
+*.lock
+composer.lock
+package-lock.json
