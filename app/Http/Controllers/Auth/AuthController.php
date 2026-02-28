@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\Category;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -130,6 +131,9 @@ class AuthController extends Controller
                 );
                 $user->assignRole($ownerRole);
 
+                // Seed default product categories based on business type
+                $this->seedDefaultCategories($tenant->id, $validated['business_type']);
+
                 Auth::login($user);
 
                 // For local development, redirect to dashboard on the central domain
@@ -157,64 +161,64 @@ class AuthController extends Controller
         }
     }
 
-    public function logout(Request $request)
+    /**
+     * Seed default product categories for a new tenant based on their business type.
+     */
+    private function seedDefaultCategories(string $tenantId, string $businessType): void
     {
-        Auth::logout();
+        $categoryMap = [
+            'retail' => [
+                ['name' => 'General Goods',  'slug' => 'general-goods'],
+                ['name' => 'Beverages',       'slug' => 'beverages'],
+                ['name' => 'Snacks',          'slug' => 'snacks'],
+                ['name' => 'Household',       'slug' => 'household'],
+            ],
+            'food' => [
+                ['name' => 'Food Items',  'slug' => 'food-items'],
+                ['name' => 'Beverages',   'slug' => 'beverages'],
+                ['name' => 'Desserts',    'slug' => 'desserts'],
+                ['name' => 'Specials',    'slug' => 'specials'],
+            ],
+            'services' => [
+                ['name' => 'Repair Services',  'slug' => 'repair-services'],
+                ['name' => 'Laundry',          'slug' => 'laundry'],
+                ['name' => 'Salon & Beauty',   'slug' => 'salon-beauty'],
+                ['name' => 'Other Services',   'slug' => 'other-services'],
+            ],
+            'fashion' => [
+                ['name' => 'Tops',        'slug' => 'tops'],
+                ['name' => 'Bottoms',     'slug' => 'bottoms'],
+                ['name' => 'Footwear',    'slug' => 'footwear'],
+                ['name' => 'Accessories', 'slug' => 'accessories'],
+            ],
+            'health' => [
+                ['name' => 'Medicines',      'slug' => 'medicines'],
+                ['name' => 'Supplements',    'slug' => 'supplements'],
+                ['name' => 'Beauty & Care',  'slug' => 'beauty-care'],
+                ['name' => 'Wellness',       'slug' => 'wellness'],
+            ],
+            'others' => [
+                ['name' => 'Products',      'slug' => 'products'],
+                ['name' => 'Services',      'slug' => 'services'],
+                ['name' => 'Miscellaneous', 'slug' => 'miscellaneous'],
+            ],
+        ];
 
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
+        $categories = $categoryMap[$businessType] ?? $categoryMap['others'];
 
-        return redirect('/');
-    }
-
-    public function showForgotPassword()
-    {
-        return Inertia::render('Auth/ForgotPassword');
-    }
-
-    public function sendResetLink(Request $request)
-    {
-        $request->validate([
-            'email' => 'required|email|exists:users',
-        ]);
-
-        // Send password reset link
-        $status = \Illuminate\Support\Facades\Password::sendResetLink(
-            $request->only('email')
-        );
-
-        return $status === \Illuminate\Support\Facades\Password::RESET_LINK_SENT
-            ? back()->with('status', __($status))
-            : back()->withErrors(['email' => __($status)]);
-    }
-
-    public function showResetPassword(string $token)
-    {
-        return Inertia::render('Auth/ResetPassword', [
-            'token' => $token,
-            'email' => request('email'),
-        ]);
-    }
-
-    public function resetPassword(Request $request)
-    {
-        $request->validate([
-            'token' => 'required',
-            'email' => 'required|email',
-            'password' => ['required', 'confirmed', Password::defaults()],
-        ]);
-
-        $status = \Illuminate\Support\Facades\Password::reset(
-            $request->only('email', 'password', 'password_confirmation', 'token'),
-            function ($user, $password) {
-                $user->forceFill([
-                    'password' => Hash::make($password),
-                ])->save();
-            }
-        );
-
-        return $status === \Illuminate\Support\Facades\Password::PASSWORD_RESET
-            ? redirect()->route('login')->with('status', __($status))
-            : back()->withErrors(['email' => [__($status)]]);
+        foreach ($categories as $index => $cat) {
+            Category::firstOrCreate(
+                [
+                    'tenant_id' => $tenantId,
+                    'slug'      => $cat['slug'],
+                    'type'      => 'product',
+                ],
+                [
+                    'name'       => $cat['name'],
+                    'sort_order' => $index,
+                    'is_active'  => true,
+                ]
+            );
+        }
     }
 }

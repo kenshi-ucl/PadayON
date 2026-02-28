@@ -121,6 +121,10 @@ Route::middleware([
         Route::get('/team', [SettingsController::class, 'team'])->name('team');
         Route::post('/team', [SettingsController::class, 'inviteTeamMember'])->name('invite');
         Route::delete('/team/{user}', [SettingsController::class, 'removeTeamMember'])->name('remove-member');
+        // Category Management
+        Route::post('/categories', [SettingsController::class, 'storeCategory'])->name('categories.store');
+        Route::patch('/categories/{category}', [SettingsController::class, 'updateCategory'])->name('categories.update');
+        Route::delete('/categories/{category}', [SettingsController::class, 'destroyCategory'])->name('categories.destroy');
     });
 
 

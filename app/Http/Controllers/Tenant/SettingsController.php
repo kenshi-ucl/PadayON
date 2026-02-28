@@ -3,11 +3,13 @@
 namespace App\Http\Controllers\Tenant;
 
 use App\Http\Controllers\Controller;
+use App\Models\Category;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\PayMongoService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 class SettingsController extends Controller
@@ -29,9 +31,16 @@ class SettingsController extends Controller
     {
         $tenant = $this->getTenant();
 
+        $categories = Category::where('tenant_id', $tenant->id)
+            ->where('type', 'product')
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get();
+
         return Inertia::render('Settings/Index', [
-            'tenant' => $tenant,
-            'regions' => config('padayon.regions'),
+            'tenant'     => $tenant,
+            'regions'    => config('padayon.regions'),
+            'categories' => $categories,
         ]);
     }
 
@@ -192,5 +201,69 @@ class SettingsController extends Controller
         $user->delete();
 
         return back()->with('success', 'Team member removed');
+    }
+
+    // -------------------------------------------------------------------------
+    // Category Management
+    // -------------------------------------------------------------------------
+
+    public function storeCategory(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:100',
+        ]);
+
+        $tenant = $this->getTenant();
+
+        Category::create([
+            'tenant_id'  => $tenant->id,
+            'name'       => $validated['name'],
+            'slug'       => Str::slug($validated['name']),
+            'type'       => 'product',
+            'sort_order' => Category::where('tenant_id', $tenant->id)->where('type', 'product')->count(),
+            'is_active'  => true,
+        ]);
+
+        return back()->with('success', 'Category added successfully');
+    }
+
+    public function updateCategory(Request $request, Category $category)
+    {
+        $tenant = $this->getTenant();
+
+        if ($category->tenant_id !== $tenant->id) {
+            abort(403);
+        }
+
+        $validated = $request->validate([
+            'name'      => 'required|string|max:100',
+            'is_active' => 'boolean',
+        ]);
+
+        $category->update([
+            'name'      => $validated['name'],
+            'slug'      => Str::slug($validated['name']),
+            'is_active' => $validated['is_active'] ?? $category->is_active,
+        ]);
+
+        return back()->with('success', 'Category updated successfully');
+    }
+
+    public function destroyCategory(Category $category)
+    {
+        $tenant = $this->getTenant();
+
+        if ($category->tenant_id !== $tenant->id) {
+            abort(403);
+        }
+
+        // Prevent deletion if the category has products
+        if ($category->products()->count() > 0) {
+            return back()->withErrors(['error' => 'Cannot delete a category that has products. Please reassign the products first.']);
+        }
+
+        $category->delete();
+
+        return back()->with('success', 'Category deleted successfully');
     }
 }

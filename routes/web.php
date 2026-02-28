@@ -181,6 +181,22 @@ Route::get('/contact', function () {
 Route::post('/webhooks/paymongo', [\App\Http\Controllers\Api\WebhookController::class, 'paymongo'])
     ->withoutMiddleware(['web', 'csrf']);
 
+// Serve storage files directly (bypasses symlink issues with PHP dev server + ngrok)
+Route::get('/storage/{path}', function (string $path) {
+    $fullPath = storage_path('app/public/' . $path);
+
+    if (!file_exists($fullPath)) {
+        abort(404);
+    }
+
+    $mimeType = mime_content_type($fullPath) ?: 'application/octet-stream';
+
+    return response()->file($fullPath, [
+        'Content-Type' => $mimeType,
+        'Cache-Control' => 'public, max-age=31536000',
+    ]);
+})->where('path', '.*');
+
 // Health check
 Route::get('/health', function () {
     return response()->json(['status' => 'ok', 'timestamp' => now()->toIso8601String()]);
@@ -244,6 +260,11 @@ Route::middleware(['auth', 'set-tenant'])->group(function () {
     Route::patch('/settings/payment', [\App\Http\Controllers\Tenant\SettingsController::class, 'updatePayment']);
     Route::patch('/settings/notifications', [\App\Http\Controllers\Tenant\SettingsController::class, 'updateNotifications']);
     Route::patch('/settings/sms', [\App\Http\Controllers\Tenant\SettingsController::class, 'updateSms']);
+
+    // Settings — Category Management
+    Route::post('/settings/categories', [\App\Http\Controllers\Tenant\SettingsController::class, 'storeCategory']);
+    Route::patch('/settings/categories/{category}', [\App\Http\Controllers\Tenant\SettingsController::class, 'updateCategory']);
+    Route::delete('/settings/categories/{category}', [\App\Http\Controllers\Tenant\SettingsController::class, 'destroyCategory']);
 
     // Scanner (QR Code)
     Route::get('/scanner', [\App\Http\Controllers\Tenant\ScannerController::class, 'index'])->name('scanner');
