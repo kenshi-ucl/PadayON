@@ -6,6 +6,7 @@ use App\Http\Controllers\Tenant\DashboardController;
 use App\Http\Controllers\Tenant\POSController;
 
 use App\Http\Controllers\Tenant\CustomerController;
+use App\Http\Controllers\Tenant\NotificationController;
 use App\Http\Controllers\Tenant\ProductController;
 use App\Http\Controllers\Tenant\OrderController;
 use App\Http\Controllers\Tenant\SettingsController;
@@ -107,6 +108,18 @@ Route::middleware([
         Route::delete('/pages/{page}', [WebsiteController::class, 'deletePage'])->name('delete-page');
         Route::post('/publish', [WebsiteController::class, 'publish'])->name('publish');
         Route::post('/unpublish', [WebsiteController::class, 'unpublish'])->name('unpublish');
+    });
+
+    // Notifications
+    Route::prefix('notifications')->name('tenant.notifications.')->group(function () {
+        Route::get('/', [NotificationController::class, 'index'])->name('index');
+        Route::get('/get', [NotificationController::class, 'getNotifications'])->name('get');
+        Route::get('/unread-count', [NotificationController::class, 'unreadCount'])->name('unread-count');
+        Route::post('/mark-read/{notification}', [NotificationController::class, 'markAsRead'])->name('mark-read');
+        Route::post('/mark-all-read', [NotificationController::class, 'markAllAsRead'])->name('mark-all-read');
+        Route::post('/send-to-team', [NotificationController::class, 'sendToTeam'])->name('send-to-team');
+        Route::get('/team-members', [NotificationController::class, 'getTeamMembers'])->name('team-members');
+        Route::delete('/{notification}', [NotificationController::class, 'destroy'])->name('destroy');
     });
 
     // Settings

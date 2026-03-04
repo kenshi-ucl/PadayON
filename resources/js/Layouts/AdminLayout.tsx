@@ -9,6 +9,7 @@ import {
     BuildingStorefrontIcon,
     ArrowRightOnRectangleIcon,
     ChartBarIcon,
+    BellIcon,
 } from '@heroicons/react/24/outline';
 
 interface AdminLayoutProps extends PropsWithChildren {
@@ -24,6 +25,7 @@ export default function AdminLayout({ children, title }: AdminLayoutProps) {
         { name: 'Dashboard', href: '/admin', icon: HomeIcon, current: currentPath === '/admin' },
         { name: 'Users', href: '/admin/users', icon: UsersIcon, current: currentPath.startsWith('/admin/users') },
         { name: 'Tenants', href: '/admin/tenants', icon: BuildingStorefrontIcon, current: currentPath.startsWith('/admin/tenants') },
+        { name: 'Notifications', href: '/admin/notifications', icon: BellIcon, current: currentPath.startsWith('/admin/notifications') },
     ];
 
     return (

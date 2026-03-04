@@ -173,6 +173,16 @@ class POSController extends Controller
                 'message' => 'Order created successfully',
             ]);
 
+        } catch (\Illuminate\Database\QueryException $e) {
+            DB::rollBack();
+
+            // Log the full error for debugging but return a safe message
+            \Log::error('Order creation failed (DB): ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Order could not be processed. Please try again.',
+            ], 422);
         } catch (\Exception $e) {
             DB::rollBack();
 

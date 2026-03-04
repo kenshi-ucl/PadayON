@@ -37,10 +37,27 @@ class SettingsController extends Controller
             ->orderBy('name')
             ->get();
 
+        $teamMembers = User::where('tenant_id', $tenant->id)
+            ->orderByDesc('is_owner')
+            ->orderBy('name')
+            ->get()
+            ->map(fn ($u) => [
+                'id'        => $u->id,
+                'name'      => $u->name,
+                'email'     => $u->email,
+                'phone'     => $u->phone,
+                'is_owner'  => $u->is_owner,
+                'is_active' => $u->is_active,
+                'roles'     => $u->getRoleNames(),
+                'initials'  => $u->getInitials(),
+            ]);
+
         return Inertia::render('Settings/Index', [
-            'tenant'     => $tenant,
-            'regions'    => config('padayon.regions'),
-            'categories' => $categories,
+            'tenant'      => $tenant,
+            'regions'     => config('padayon.regions'),
+            'categories'  => $categories,
+            'teamMembers' => $teamMembers,
+            'teamRoles'   => ['staff', 'cashier', 'manager'],
         ]);
     }
 
@@ -166,26 +183,30 @@ class SettingsController extends Controller
     public function inviteTeamMember(Request $request)
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email',
-            'phone' => 'nullable|string|max:20',
-            'role' => 'required|in:manager,cashier,staff',
-            'password' => 'required|min:8',
+            'name'     => 'required|string|max:255',
+            'email'    => 'required|email|unique:users,email',
+            'phone'    => 'nullable|string|max:20',
+            'role'     => 'required|in:manager,cashier,staff',
+            'password' => 'required|string|min:8|confirmed',
         ]);
 
         $user = User::create([
             'tenant_id' => $this->getTenant()->id,
-            'name' => $validated['name'],
-            'email' => $validated['email'],
-            'phone' => $validated['phone'],
-            'password' => Hash::make($validated['password']),
-            'is_owner' => false,
+            'name'      => $validated['name'],
+            'email'     => $validated['email'],
+            'phone'     => $validated['phone'] ?? null,
+            'password'  => Hash::make($validated['password']),
+            'is_owner'  => false,
             'is_active' => true,
         ]);
 
-        $user->assignRole($validated['role']);
+        // Ensure role exists and assign it
+        $role = \Spatie\Permission\Models\Role::firstOrCreate(
+            ['name' => $validated['role'], 'guard_name' => 'web']
+        );
+        $user->assignRole($role);
 
-        return back()->with('success', 'Team member added successfully');
+        return back()->with('success', "Team member {$user->name} added as {$validated['role']} successfully.");
     }
 
     public function removeTeamMember(User $user)

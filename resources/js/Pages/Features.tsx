@@ -1,6 +1,6 @@
 import React from 'react';
 import { Head, Link } from '@inertiajs/react';
-import appLogo from '@/../images/PadayON.png';
+import LandingLayout from '@/Layouts/LandingLayout';
 import {
     DevicePhoneMobileIcon,
     CreditCardIcon,
@@ -39,25 +39,8 @@ const coreFeatures: FeatureItem[] = [
 
 export default function Features() {
     return (
-        <>
+        <LandingLayout>
             <Head title="Features - PadayON" />
-
-            {/* Header */}
-            <div className="bg-white">
-                <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-                    <Link href="/" className="flex items-center">
-                        <img src={appLogo} alt="PadayON" className="h-12 object-contain" />
-                    </Link>
-                    <div className="flex items-center gap-4">
-                        <Link href="/features" className="text-sm font-medium text-primary-600">Features</Link>
-                        <Link href="/pricing" className="text-sm font-medium text-gray-600 hover:text-gray-900">Pricing</Link>
-                        <Link href="/login" className="text-sm font-medium text-gray-600 hover:text-gray-900">Login</Link>
-                        <Link href="/register" className="bg-primary-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary-700">
-                            Start Free
-                        </Link>
-                    </div>
-                </nav>
-            </div>
 
             {/* Hero */}
             <div className="bg-gradient-to-br from-primary-600 to-secondary-600 py-20">
@@ -107,8 +90,8 @@ export default function Features() {
                         Join thousands of Filipino entrepreneurs using PadayON. Start free, upgrade anytime.
                     </p>
                     <div className="mt-8 flex justify-center gap-4">
-                        <Link href="/register" className="bg-primary-600 text-white px-8 py-3 rounded-lg text-sm font-medium hover:bg-primary-700">
-                            Start Free Trial
+                        <Link href="/login" className="bg-primary-600 text-white px-8 py-3 rounded-lg text-sm font-medium hover:bg-primary-700">
+                            Sign In to Dashboard
                         </Link>
                         <Link href="/pricing" className="bg-white text-gray-900 px-8 py-3 rounded-lg text-sm font-medium border border-gray-300 hover:bg-gray-50">
                             View Pricing
@@ -116,6 +99,6 @@ export default function Features() {
                     </div>
                 </div>
             </div>
-        </>
+        </LandingLayout>
     );
 }

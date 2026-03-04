@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
+import axios from 'axios';
 import { Head, router } from '@inertiajs/react';
 import TenantLayout from '@/Layouts/TenantLayout';
 import { PageProps, Product, Category, Customer, CartItem } from '@/types';
@@ -294,19 +295,12 @@ export default function POS({ categories, products, customers, settings }: POSPr
         if (!quickCustomerName.trim()) return;
 
         try {
-            const response = await fetch('/pos/quick-customer', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
-                },
-                body: JSON.stringify({
-                    name: quickCustomerName,
-                    phone: quickCustomerPhone || null,
-                }),
+            const response = await axios.post('/pos/quick-customer', {
+                name: quickCustomerName,
+                phone: quickCustomerPhone || null,
             });
 
-            const data = await response.json();
+            const data = response.data;
             if (data.success) {
                 setSelectedCustomer(data.customer);
                 setShowQuickCustomerForm(false);
@@ -341,16 +335,9 @@ export default function POS({ categories, products, customers, settings }: POSPr
                 is_credit: paymentMethod === 'credit',
             };
 
-            const response = await fetch('/pos/orders', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
-                },
-                body: JSON.stringify(orderData),
-            });
+            const response = await axios.post('/pos/orders', orderData);
 
-            const data = await response.json();
+            const data = response.data;
 
             if (data.success) {
                 setLastOrder(data);
@@ -370,9 +357,10 @@ export default function POS({ categories, products, customers, settings }: POSPr
             } else {
                 alert(data.message || 'Failed to create order');
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('Order processing error:', error);
-            alert('Failed to process order. Please try again.');
+            const message = error?.response?.data?.message || 'Failed to process order. Please try again.';
+            alert(message);
         } finally {
             setIsProcessing(false);
         }
@@ -913,41 +901,151 @@ export default function POS({ categories, products, customers, settings }: POSPr
                 </div>
             )}
 
-            {/* Receipt Modal */}
+            {/* Receipt Modal — full thermal receipt after order completion */}
             {showReceiptModal && lastOrder && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-                    <div className="bg-white rounded-xl shadow-xl w-full max-w-sm">
-                        <div className="p-6 text-center">
-                            <CheckCircleIcon className="h-16 w-16 text-green-500 mx-auto mb-3" />
-                            <h3 className="text-xl font-bold text-gray-900">Order Complete!</h3>
-                            <p className="text-gray-500 text-sm mt-1">
-                                Order #{lastOrder.order?.order_number}
-                            </p>
-                            <p className="text-2xl font-bold text-gray-900 mt-3">
-                                {formatCurrency(lastOrder.order?.total || 0)}
-                            </p>
-                            {lastOrder.order?.change_amount > 0 && (
-                                <p className="text-sm text-green-600 mt-1">
-                                    Change: {formatCurrency(lastOrder.order.change_amount)}
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 print:bg-white print:absolute">
+                    <div className="bg-white rounded-xl w-full max-w-sm mx-4 max-h-[90vh] overflow-y-auto print:rounded-none print:shadow-none print:max-w-none print:m-0 print:overflow-visible">
+                        {/* Print-only styles */}
+                        <style>{`
+                            @media print {
+                                body * { visibility: hidden !important; }
+                                .pos-receipt-content, .pos-receipt-content * { visibility: visible !important; }
+                                .pos-receipt-content {
+                                    position: absolute !important;
+                                    left: 0 !important;
+                                    top: 0 !important;
+                                    width: 80mm !important;
+                                    padding: 10px !important;
+                                    font-family: 'Courier New', monospace !important;
+                                }
+                                .pos-no-print { display: none !important; }
+                            }
+                        `}</style>
+
+                        <div className="pos-receipt-content p-6 font-mono text-sm">
+                            {/* Store Header */}
+                            <div className="text-center mb-4">
+                                <h1 className="text-lg font-bold italic">
+                                    {lastOrder.tenant?.name || 'PadayON Store'}
+                                </h1>
+                                {lastOrder.tenant?.address && (
+                                    <p className="text-xs">{lastOrder.tenant.address}</p>
+                                )}
+                                {(lastOrder.tenant?.city || lastOrder.tenant?.province) && (
+                                    <p className="text-xs">
+                                        {[lastOrder.tenant.city, lastOrder.tenant.province].filter(Boolean).join(', ')}
+                                    </p>
+                                )}
+                                {lastOrder.tenant?.phone && (
+                                    <p className="text-xs">Phone: {lastOrder.tenant.phone}</p>
+                                )}
+                                {lastOrder.tenant?.email && (
+                                    <p className="text-xs">Email: {lastOrder.tenant.email}</p>
+                                )}
+                            </div>
+
+                            {/* Separator */}
+                            <div className="border-t border-dashed border-gray-400 my-3"></div>
+
+                            {/* Receipt Details */}
+                            <div className="space-y-1 text-xs">
+                                <p>Receipt ID: {lastOrder.order?.order_number}</p>
+                                <p>Date: {lastOrder.order?.created_at
+                                    ? new Date(lastOrder.order.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+                                    : new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
                                 </p>
-                            )}
+                                <p>Time: {lastOrder.order?.created_at
+                                    ? new Date(lastOrder.order.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+                                    : new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                                </p>
+                                <p>Order Type: {lastOrder.order?.is_credit ? 'Credit Sale (Utang)' : 'Cash Sale'}</p>
+                            </div>
+
+                            {/* Separator */}
+                            <div className="border-t border-dashed border-gray-400 my-3"></div>
+
+                            {/* Items */}
+                            <div className="space-y-2">
+                                {lastOrder.order?.items?.map((item: any, idx: number) => (
+                                    <div key={item.id ?? idx} className="flex justify-between text-xs">
+                                        <span>
+                                            {item.name} {Number(item.quantity) > 1
+                                                ? `x${Number(item.quantity).toFixed(3).replace(/\.?0+$/, '')}`
+                                                : ''}
+                                        </span>
+                                        <span>₱{Number(item.total).toFixed(2)}</span>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Separator */}
+                            <div className="border-t border-dashed border-gray-400 my-3"></div>
+
+                            {/* Totals */}
+                            <div className="space-y-1 text-xs">
+                                <div className="flex justify-between">
+                                    <span>Subtotal:</span>
+                                    <span>₱{Number(lastOrder.order?.subtotal ?? 0).toFixed(2)}</span>
+                                </div>
+                                {Number(lastOrder.order?.discount_amount) > 0 && (
+                                    <div className="flex justify-between text-red-600">
+                                        <span>Discount:</span>
+                                        <span>-₱{Number(lastOrder.order.discount_amount).toFixed(2)}</span>
+                                    </div>
+                                )}
+                                {Number(lastOrder.order?.tax_amount) > 0 && (
+                                    <div className="flex justify-between">
+                                        <span>Tax:</span>
+                                        <span>₱{Number(lastOrder.order.tax_amount).toFixed(2)}</span>
+                                    </div>
+                                )}
+                                <div className="flex justify-between font-bold">
+                                    <span>Total:</span>
+                                    <span>₱{Number(lastOrder.order?.total ?? 0).toFixed(2)}</span>
+                                </div>
+                                <p className="mt-2">
+                                    Payment Method: {lastOrder.order?.payment_method
+                                        ? lastOrder.order.payment_method.charAt(0).toUpperCase() + lastOrder.order.payment_method.slice(1)
+                                        : 'N/A'}
+                                </p>
+                                {Number(lastOrder.order?.amount_paid) > 0 && (
+                                    <p>Amount Paid: ₱{Number(lastOrder.order.amount_paid).toFixed(2)}</p>
+                                )}
+                                {Number(lastOrder.order?.change_amount) > 0 && (
+                                    <p className="text-green-600 font-medium">
+                                        Change: ₱{Number(lastOrder.order.change_amount).toFixed(2)}
+                                    </p>
+                                )}
+                                <p>Category: Sales Revenue</p>
+                                {lastOrder.order?.customer && (
+                                    <p>Customer: {lastOrder.order.customer.name}</p>
+                                )}
+                            </div>
+
+                            {/* Separator */}
+                            <div className="border-t border-dashed border-gray-400 my-3"></div>
+
+                            {/* Footer */}
+                            <div className="text-center text-xs mt-4">
+                                <p>Thank you for your business!</p>
+                                <p className="mt-1">This is an official receipt for your records.</p>
+                            </div>
                         </div>
 
-                        <div className="border-t p-4 flex gap-3">
+                        {/* Action Buttons — hidden when printing */}
+                        <div className="pos-no-print flex gap-3 p-4 border-t">
                             <button
                                 onClick={() => setShowReceiptModal(false)}
-                                className="flex-1 py-2.5 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+                                className="flex-1 py-2.5 border border-gray-300 rounded-lg font-medium hover:bg-gray-50 transition-colors"
                             >
-                                New Order
+                                Close
                             </button>
                             <button
-                                onClick={() => {
-                                    window.print();
-                                }}
-                                className="flex-1 py-2.5 rounded-lg bg-primary-600 text-white font-medium hover:bg-primary-700 transition-colors flex items-center justify-center gap-2"
+                                onClick={() => window.print()}
+                                className="flex-1 py-2.5 bg-primary-600 text-white rounded-lg font-medium hover:bg-primary-700 transition-colors flex items-center justify-center gap-2"
                             >
                                 <PrinterIcon className="h-4 w-4" />
-                                Print
+                                Print Receipt
                             </button>
                         </div>
                     </div>

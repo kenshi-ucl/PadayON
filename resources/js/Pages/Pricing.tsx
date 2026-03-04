@@ -1,6 +1,6 @@
 import React from 'react';
 import { Head, Link } from '@inertiajs/react';
-import appLogo from '@/../images/PadayON.png';
+import LandingLayout from '@/Layouts/LandingLayout';
 import { CheckIcon } from '@heroicons/react/24/outline';
 import { clsx } from 'clsx';
 
@@ -56,31 +56,10 @@ const defaultPlans: Plan[] = [
 
 export default function Pricing({ plans }: PricingProps) {
     return (
-        <>
+        <LandingLayout>
             <Head title="Pricing - PadayON" />
 
-            <div className="min-h-screen bg-gray-50">
-                {/* Header */}
-                <header className="bg-white shadow-sm">
-                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-                        <div className="flex justify-between items-center">
-                            <Link href="/" className="flex items-center">
-                                <img src={appLogo} alt="PadayON" className="h-12 object-contain" />
-                            </Link>
-                            <nav className="hidden md:flex items-center gap-6">
-                                <Link href="/features" className="text-gray-600 hover:text-gray-900">Features</Link>
-                                <Link href="/pricing" className="text-primary-600 font-medium">Pricing</Link>
-                                <Link href="/about" className="text-gray-600 hover:text-gray-900">About</Link>
-                                <Link href="/contact" className="text-gray-600 hover:text-gray-900">Contact</Link>
-                                <Link href="/login" className="text-gray-600 hover:text-gray-900">Login</Link>
-                                <Link href="/register" className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700">
-                                    Get Started
-                                </Link>
-                            </nav>
-                        </div>
-                    </div>
-                </header>
-
+            <div className="bg-gray-50">
                 {/* Hero */}
                 <section className="py-16 bg-white">
                     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
@@ -149,7 +128,7 @@ export default function Pricing({ plans }: PricingProps) {
                                         ))}
                                     </ul>
                                     <Link
-                                        href="/register"
+                                        href="/login"
                                         className={clsx(
                                             'block w-full py-3 text-center font-semibold rounded-lg transition-colors',
                                             plan.highlighted
@@ -157,7 +136,7 @@ export default function Pricing({ plans }: PricingProps) {
                                                 : 'bg-primary-600 text-white hover:bg-primary-700'
                                         )}
                                     >
-                                        {plan.cta}
+                                        Sign In
                                     </Link>
                                 </div>
                             ))}
@@ -185,14 +164,7 @@ export default function Pricing({ plans }: PricingProps) {
                         </div>
                     </div>
                 </section>
-
-                {/* Footer */}
-                <footer className="bg-gray-100 py-8">
-                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-gray-600">
-                        <p>© 2024 PadayON. All rights reserved.</p>
-                    </div>
-                </footer>
             </div>
-        </>
+        </LandingLayout>
     );
 }

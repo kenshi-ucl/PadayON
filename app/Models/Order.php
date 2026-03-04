@@ -119,12 +119,22 @@ class Order extends Model
     public static function generateOrderNumber(string $tenantId): string
     {
         $prefix = strtoupper(substr($tenantId, 0, 3));
-        $date = now()->format('ymd');
-        $sequence = static::where('tenant_id', $tenantId)
-            ->whereDate('created_at', today())
-            ->count() + 1;
+        $date   = now()->format('ymd');
 
-        return sprintf('%s-%s-%04d', $prefix, $date, $sequence);
+        // Use withTrashed() so soft-deleted orders are still counted
+        $last = static::withTrashed()
+            ->where('tenant_id', $tenantId)
+            ->where('order_number', 'like', "{$prefix}-{$date}-%")
+            ->max('order_number');
+
+        $lastSeq = $last ? (int) substr($last, strrpos($last, '-') + 1) : 0;
+
+        do {
+            $lastSeq++;
+            $candidate = sprintf('%s-%s-%04d', $prefix, $date, $lastSeq);
+        } while (static::withTrashed()->where('order_number', $candidate)->exists());
+
+        return $candidate;
     }
 
     // Relationships
@@ -270,34 +280,52 @@ class Order extends Model
 
     public function recordPayment(float $amount, string $method, ?string $reference = null): Payment
     {
-        $payment = $this->payments()->create([
-            'tenant_id' => $this->tenant_id,
-            'customer_id' => $this->customer_id,
-            'user_id' => auth()->id(),
-            'payment_number' => Payment::generatePaymentNumber($this->tenant_id),
-            'type' => 'order',
-            'amount' => $amount,
-            'fee' => 0,
-            'net_amount' => $amount,
-            'method' => $method,
-            'gateway' => $method === 'cash' ? 'manual' : 'paymongo',
-            'status' => 'completed',
-            'reference_number' => $reference,
-            'paid_at' => now(),
-        ]);
+        $maxAttempts = 5;
+        $attempt     = 0;
+        $payment     = null;
 
-        $this->amount_paid += $amount;
-        $this->balance_due = max(0, $this->total - $this->amount_paid);
-        $this->change_amount = max(0, $this->amount_paid - $this->total);
+        while ($attempt < $maxAttempts) {
+            $attempt++;
+            try {
+                $payment = \Illuminate\Support\Facades\DB::transaction(function () use ($amount, $method, $reference) {
+                    return $this->payments()->create([
+                        'tenant_id'        => $this->tenant_id,
+                        'customer_id'      => $this->customer_id,
+                        'user_id'          => auth()->id(),
+                        'payment_number'   => Payment::generatePaymentNumber($this->tenant_id),
+                        'type'             => 'order',
+                        'amount'           => $amount,
+                        'fee'              => 0,
+                        'net_amount'       => $amount,
+                        'method'           => $method,
+                        'gateway'          => $method === 'cash' ? 'manual' : 'paymongo',
+                        'status'           => 'completed',
+                        'reference_number' => $reference,
+                        'paid_at'          => now(),
+                    ]);
+                });
+                break; // success, exit loop
+            } catch (\Illuminate\Database\QueryException $e) {
+                // Retry if it's a unique constraint violation on payment_number
+                if ($attempt < $maxAttempts && str_contains($e->getMessage(), 'payment_number')) {
+                    continue;
+                }
+                throw $e; // re-throw if not retryable or exhausted
+            }
+        }
+
+        $this->amount_paid   += $amount;
+        $this->balance_due    = max(0, $this->total - $this->amount_paid);
+        $this->change_amount  = max(0, $this->amount_paid - $this->total);
 
         if ($this->balance_due <= 0) {
             $this->payment_status = self::PAYMENT_STATUS_PAID;
-            $this->paid_at = now();
+            $this->paid_at        = now();
         } elseif ($this->amount_paid > 0) {
             $this->payment_status = self::PAYMENT_STATUS_PARTIAL;
         }
 
-        $this->payment_method = $method;
+        $this->payment_method    = $method;
         $this->payment_reference = $reference;
         $this->save();
 

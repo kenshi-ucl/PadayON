@@ -34,6 +34,7 @@ class HandleInertiaRequests extends Middleware
             ...parent::share($request),
             'auth' => [
                 'user' => $request->user(),
+                'unreadNotificationCount' => $request->user()?->unreadNotifications()->count() ?? 0,
             ],
             'tenant' => function () {
                 if (function_exists('tenant') && tenant()) {
@@ -58,6 +59,7 @@ class HandleInertiaRequests extends Middleware
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),
+                'status' => fn () => $request->session()->get('status'),
             ],
             'ziggy' => fn () => [
                 ...(new Ziggy)->toArray(),

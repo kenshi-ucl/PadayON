@@ -40,9 +40,25 @@ class Payment extends Model
     public static function generatePaymentNumber(string $tenantId): string
     {
         $prefix = 'PAY';
-        $date = now()->format('ymd');
-        $sequence = static::where('tenant_id', $tenantId)->whereDate('created_at', today())->count() + 1;
-        return sprintf('%s-%s-%04d', $prefix, $date, $sequence);
+        $date   = now()->format('ymd');
+
+        // CRITICAL: Use withoutGlobalScopes() to check ALL records across ALL tenants.
+        // The DB constraint 'payments_payment_number_unique' is global (not tenant-scoped),
+        // so we must query globally to prevent cross-tenant collisions.
+        $last = static::withoutGlobalScopes()
+            ->withTrashed()
+            ->where('payment_number', 'like', "{$prefix}-{$date}-%")
+            ->max('payment_number');
+
+        $lastSeq = $last ? (int) substr($last, strrpos($last, '-') + 1) : 0;
+
+        // Increment until we find a globally unique number (trashed or not)
+        do {
+            $lastSeq++;
+            $candidate = sprintf('%s-%s-%04d', $prefix, $date, $lastSeq);
+        } while (static::withoutGlobalScopes()->withTrashed()->where('payment_number', $candidate)->exists());
+
+        return $candidate;
     }
 
     public function order() { return $this->belongsTo(Order::class); }

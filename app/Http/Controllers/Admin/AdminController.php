@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Category;
 use App\Models\Customer;
 use App\Models\Order;
 use App\Models\Product;
@@ -10,8 +11,11 @@ use App\Models\Subscription;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
 
 class AdminController extends Controller
@@ -200,45 +204,142 @@ class AdminController extends Controller
     }
 
     /**
-     * Show create user form.
+     * Show create user form (full registration wizard for admin).
      */
     public function createUser()
     {
         $this->authorizeAdmin();
 
-        $tenants = Tenant::select('id', 'name', 'business_name', 'plan')->get();
-
         return Inertia::render('Admin/Users/Create', [
-            'tenants' => $tenants,
+            'plans' => config('padayon.plans'),
         ]);
     }
 
     /**
-     * Store a new user.
+     * Store a new user via the full registration flow (Tenant + User + Domain + Categories + Role).
      */
     public function storeUser(Request $request)
     {
         $this->authorizeAdmin();
 
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email',
-            'phone' => 'nullable|string|max:20',
-            'password' => 'required|string|min:8',
-            'tenant_id' => 'nullable|exists:tenants,id',
-            'is_admin' => 'boolean',
-            'is_owner' => 'boolean',
-            'is_active' => 'boolean',
+            'name'          => 'required|string|max:255',
+            'email'         => 'required|email|unique:users,email',
+            'phone'         => 'nullable|string|max:20',
+            'password'      => ['required', 'confirmed', Password::defaults()],
+            'business_name' => 'required|string|max:255',
+            'business_type' => 'required|string|max:100',
+            'slug'          => 'required|string|max:50|unique:tenants,slug|alpha_dash',
+            'is_admin'      => 'boolean',
+            'is_active'     => 'boolean',
         ]);
 
-        $validated['password'] = Hash::make($validated['password']);
-        $validated['is_admin'] = $validated['is_admin'] ?? false;
-        $validated['is_owner'] = $validated['is_owner'] ?? false;
-        $validated['is_active'] = $validated['is_active'] ?? true;
+        return DB::transaction(function () use ($validated) {
+            // Create tenant
+            $tenant = Tenant::create([
+                'id'            => Str::uuid()->toString(),
+                'name'          => $validated['business_name'],
+                'slug'          => strtolower($validated['slug']),
+                'business_type' => $validated['business_type'],
+                'business_name' => $validated['business_name'],
+                'email'         => $validated['email'],
+                'phone'         => $validated['phone'] ?? null,
+                'plan'          => 'free',
+                'trial_ends_at' => now()->addDays(14),
+                'is_active'     => true,
+            ]);
 
-        User::create($validated);
+            // Create domain for the tenant
+            $centralDomain = config('tenancy.central_domains.0', 'localhost');
+            $tenant->domains()->create([
+                'domain'     => strtolower($validated['slug']) . '.' . $centralDomain,
+                'is_primary' => true,
+            ]);
 
-        return redirect()->route('admin.users')->with('success', 'User created successfully.');
+            // Create user (always an owner of their tenant)
+            $user = User::create([
+                'tenant_id' => $tenant->id,
+                'name'      => $validated['name'],
+                'email'     => $validated['email'],
+                'phone'     => $validated['phone'] ?? null,
+                'password'  => Hash::make($validated['password']),
+                'is_owner'  => true,
+                'is_admin'  => $validated['is_admin'] ?? false,
+                'is_active' => $validated['is_active'] ?? true,
+            ]);
+
+            // Assign owner role
+            $ownerRole = \Spatie\Permission\Models\Role::firstOrCreate(
+                ['name' => 'owner', 'guard_name' => 'web']
+            );
+            $user->assignRole($ownerRole);
+
+            // Seed default product categories based on business type
+            $this->seedDefaultCategories($tenant->id, $validated['business_type']);
+
+            return redirect()->route('admin.users')->with('success', 'User and business account created successfully.');
+        });
+    }
+
+    /**
+     * Seed default product categories for a new tenant based on their business type.
+     */
+    private function seedDefaultCategories(string $tenantId, string $businessType): void
+    {
+        $categoryMap = [
+            'retail' => [
+                ['name' => 'General Goods',  'slug' => 'general-goods'],
+                ['name' => 'Beverages',       'slug' => 'beverages'],
+                ['name' => 'Snacks',          'slug' => 'snacks'],
+                ['name' => 'Household',       'slug' => 'household'],
+            ],
+            'food' => [
+                ['name' => 'Food Items',  'slug' => 'food-items'],
+                ['name' => 'Beverages',   'slug' => 'beverages'],
+                ['name' => 'Desserts',    'slug' => 'desserts'],
+                ['name' => 'Specials',    'slug' => 'specials'],
+            ],
+            'services' => [
+                ['name' => 'Repair Services',  'slug' => 'repair-services'],
+                ['name' => 'Laundry',          'slug' => 'laundry'],
+                ['name' => 'Salon & Beauty',   'slug' => 'salon-beauty'],
+                ['name' => 'Other Services',   'slug' => 'other-services'],
+            ],
+            'fashion' => [
+                ['name' => 'Tops',        'slug' => 'tops'],
+                ['name' => 'Bottoms',     'slug' => 'bottoms'],
+                ['name' => 'Footwear',    'slug' => 'footwear'],
+                ['name' => 'Accessories', 'slug' => 'accessories'],
+            ],
+            'health' => [
+                ['name' => 'Medicines',      'slug' => 'medicines'],
+                ['name' => 'Supplements',    'slug' => 'supplements'],
+                ['name' => 'Beauty & Care',  'slug' => 'beauty-care'],
+                ['name' => 'Wellness',       'slug' => 'wellness'],
+            ],
+            'others' => [
+                ['name' => 'Products',      'slug' => 'products'],
+                ['name' => 'Services',      'slug' => 'services'],
+                ['name' => 'Miscellaneous', 'slug' => 'miscellaneous'],
+            ],
+        ];
+
+        $categories = $categoryMap[$businessType] ?? $categoryMap['others'];
+
+        foreach ($categories as $index => $cat) {
+            Category::firstOrCreate(
+                [
+                    'tenant_id' => $tenantId,
+                    'slug'      => $cat['slug'],
+                    'type'      => 'product',
+                ],
+                [
+                    'name'       => $cat['name'],
+                    'sort_order' => $index,
+                    'is_active'  => true,
+                ]
+            );
+        }
     }
 
     /**

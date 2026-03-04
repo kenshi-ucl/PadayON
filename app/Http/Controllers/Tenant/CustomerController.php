@@ -112,7 +112,7 @@ class CustomerController extends Controller
             'average_order' => $customer->total_orders > 0
                 ? $customer->total_spent / $customer->total_orders
                 : 0,
-            'days_as_customer' => $customer->created_at->diffInDays(now()),
+            'days_as_customer' => (int) $customer->created_at->diffInDays(now()),
         ];
 
         return Inertia::render('Customers/Show', [
@@ -163,23 +163,35 @@ class CustomerController extends Controller
         DB::beginTransaction();
 
         try {
-            // Create payment record
-            $payment = Payment::create([
-                'tenant_id' => tenant()->id,
-                'customer_id' => $customer->id,
-                'user_id' => auth()->id(),
-                'payment_number' => Payment::generatePaymentNumber(tenant()->id),
-                'type' => 'credit_payment',
-                'amount' => $validated['amount'],
-                'fee' => 0,
-                'net_amount' => $validated['amount'],
-                'method' => $validated['method'],
-                'gateway' => 'manual',
-                'status' => 'completed',
-                'reference_number' => $validated['reference'] ?? null,
-                'notes' => $validated['notes'] ?? null,
-                'paid_at' => now(),
-            ]);
+            // Create payment record with retry for payment number collisions
+            $payment = null;
+            $maxAttempts = 5;
+            for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
+                try {
+                    $payment = Payment::create([
+                        'tenant_id' => tenant()->id,
+                        'customer_id' => $customer->id,
+                        'user_id' => auth()->id(),
+                        'payment_number' => Payment::generatePaymentNumber(tenant()->id),
+                        'type' => 'credit_payment',
+                        'amount' => $validated['amount'],
+                        'fee' => 0,
+                        'net_amount' => $validated['amount'],
+                        'method' => $validated['method'],
+                        'gateway' => 'manual',
+                        'status' => 'completed',
+                        'reference_number' => $validated['reference'] ?? null,
+                        'notes' => $validated['notes'] ?? null,
+                        'paid_at' => now(),
+                    ]);
+                    break;
+                } catch (\Illuminate\Database\QueryException $e) {
+                    if ($attempt < $maxAttempts && str_contains($e->getMessage(), 'payment_number')) {
+                        continue;
+                    }
+                    throw $e;
+                }
+            }
 
             // Record credit transaction
             $customer->recordPayment($validated['amount'], $payment, $validated['notes']);

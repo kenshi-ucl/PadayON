@@ -21,11 +21,14 @@ Route::get('/', function () {
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
     Route::post('/login', [AuthController::class, 'login']);
-    Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
-    Route::post('/register', [AuthController::class, 'register']);
+
+    // Forgot Password (OTP Flow)
     Route::get('/forgot-password', [AuthController::class, 'showForgotPassword'])->name('password.request');
-    Route::post('/forgot-password', [AuthController::class, 'sendResetLink'])->name('password.email');
-    Route::get('/reset-password/{token}', [AuthController::class, 'showResetPassword'])->name('password.reset');
+    Route::post('/forgot-password', [AuthController::class, 'sendOtp'])->name('password.send-otp');
+    Route::get('/verify-otp', [AuthController::class, 'showVerifyOtp'])->name('password.verify-otp');
+    Route::post('/verify-otp', [AuthController::class, 'verifyOtp'])->name('password.verify-otp.submit');
+    Route::post('/resend-otp', [AuthController::class, 'resendOtp'])->name('password.resend-otp');
+    Route::get('/reset-password', [AuthController::class, 'showResetPassword'])->name('password.reset-form');
     Route::post('/reset-password', [AuthController::class, 'resetPassword'])->name('password.update');
 });
 
@@ -138,6 +141,11 @@ Route::middleware('auth')->group(function () {
     // Admin Monitoring Dashboard
     Route::prefix('admin')->group(function () {
         Route::get('/', [\App\Http\Controllers\Admin\AdminController::class, 'dashboard'])->name('admin.dashboard');
+
+        // Admin Notifications
+        Route::get('/notifications', [\App\Http\Controllers\Admin\AdminNotificationController::class, 'index'])->name('admin.notifications');
+        Route::post('/notifications/send', [\App\Http\Controllers\Admin\AdminNotificationController::class, 'send'])->name('admin.notifications.send');
+        Route::get('/notifications/owners', [\App\Http\Controllers\Admin\AdminNotificationController::class, 'getOwners'])->name('admin.notifications.owners');
 
         // Users Management
         Route::get('/users', [\App\Http\Controllers\Admin\AdminController::class, 'users'])->name('admin.users');
@@ -266,8 +274,22 @@ Route::middleware(['auth', 'set-tenant'])->group(function () {
     Route::patch('/settings/categories/{category}', [\App\Http\Controllers\Tenant\SettingsController::class, 'updateCategory']);
     Route::delete('/settings/categories/{category}', [\App\Http\Controllers\Tenant\SettingsController::class, 'destroyCategory']);
 
+    // Settings — Team Members
+    Route::post('/settings/team', [\App\Http\Controllers\Tenant\SettingsController::class, 'inviteTeamMember'])->name('settings.team.invite');
+    Route::delete('/settings/team/{user}', [\App\Http\Controllers\Tenant\SettingsController::class, 'removeTeamMember'])->name('settings.team.remove');
+
     // Scanner (QR Code)
     Route::get('/scanner', [\App\Http\Controllers\Tenant\ScannerController::class, 'index'])->name('scanner');
     Route::post('/scanner/lookup', [\App\Http\Controllers\Tenant\ScannerController::class, 'lookupQr']);
     Route::post('/scanner/charge', [\App\Http\Controllers\Tenant\ScannerController::class, 'chargeItems']);
+
+    // Notifications
+    Route::get('/notifications', [\App\Http\Controllers\Tenant\NotificationController::class, 'index'])->name('notifications');
+    Route::get('/notifications/get', [\App\Http\Controllers\Tenant\NotificationController::class, 'getNotifications']);
+    Route::get('/notifications/unread-count', [\App\Http\Controllers\Tenant\NotificationController::class, 'unreadCount']);
+    Route::post('/notifications/mark-read/{notification}', [\App\Http\Controllers\Tenant\NotificationController::class, 'markAsRead']);
+    Route::post('/notifications/mark-all-read', [\App\Http\Controllers\Tenant\NotificationController::class, 'markAllAsRead']);
+    Route::post('/notifications/send-to-team', [\App\Http\Controllers\Tenant\NotificationController::class, 'sendToTeam']);
+    Route::get('/notifications/team-members', [\App\Http\Controllers\Tenant\NotificationController::class, 'getTeamMembers']);
+    Route::delete('/notifications/{notification}', [\App\Http\Controllers\Tenant\NotificationController::class, 'destroy']);
 });

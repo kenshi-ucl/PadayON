@@ -286,7 +286,7 @@ export default function Reports({
                             <p className="text-3xl font-bold text-gray-900">{formatCurrency(salesSummary.gross_sales)}</p>
                         </div>
                         <div className="p-3 bg-green-100 rounded-xl">
-                            <CurrencyDollarIcon className="h-6 w-6 text-green-600" />
+                            <span className="h-6 w-6 text-green-600 font-bold text-lg flex items-center justify-center">₱</span>
                         </div>
                     </div>
                 </div>

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Head, Link } from '@inertiajs/react';
-import appLogo from '@/../images/PadayON.png';
+import LandingLayout from '@/Layouts/LandingLayout';
 import {
     ShoppingCartIcon,
     CreditCardIcon,
@@ -68,45 +68,12 @@ export default function Welcome({ plans }: Props) {
     ];
 
     return (
-        <>
+        <LandingLayout>
             <Head title="PadayON - The All-in-One Platform for Filipino Small Businesses" />
 
             <div className="bg-white">
-                {/* Navigation */}
-                <header className="absolute inset-x-0 top-0 z-50">
-                    <nav className="flex items-center justify-between p-6 lg:px-8 max-w-7xl mx-auto">
-                        <div className="flex lg:flex-1">
-                            <Link href="/" className="-m-1.5 p-1.5 flex items-center">
-                                <img src={appLogo} alt="PadayON" className="h-12 object-contain" />
-                            </Link>
-                        </div>
-                        <div className="hidden lg:flex lg:gap-x-8">
-                            <Link href="/features" className="text-sm font-semibold text-gray-900 hover:text-primary-600">
-                                Features
-                            </Link>
-                            <Link href="/pricing" className="text-sm font-semibold text-gray-900 hover:text-primary-600">
-                                Pricing
-                            </Link>
-                        </div>
-                        <div className="flex flex-1 justify-end gap-4">
-                            <Link
-                                href="/login"
-                                className="text-sm font-semibold text-gray-900 hover:text-primary-600"
-                            >
-                                Log in
-                            </Link>
-                            <Link
-                                href="/register"
-                                className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-700"
-                            >
-                                Start Free
-                            </Link>
-                        </div>
-                    </nav>
-                </header>
-
                 {/* Hero Section */}
-                <div className="relative isolate pt-14">
+                <div className="relative isolate">
                     <div className="absolute inset-x-0 -top-40 -z-10 transform-gpu overflow-hidden blur-3xl sm:-top-80">
                         <div
                             className="relative left-[calc(50%-11rem)] aspect-[1155/678] w-[36.125rem] -translate-x-1/2 rotate-[30deg] bg-gradient-to-tr from-primary-200 to-secondary-200 opacity-30 sm:left-[calc(50%-30rem)] sm:w-[72.1875rem]"
@@ -131,10 +98,10 @@ export default function Welcome({ plans }: Props) {
                                 </p>
                                 <div className="mt-10 flex items-center justify-center gap-x-6">
                                     <Link
-                                        href="/register"
+                                        href="/login"
                                         className="rounded-xl bg-primary-600 px-6 py-3 text-lg font-semibold text-white shadow-lg hover:bg-primary-700 flex items-center gap-2"
                                     >
-                                        Simulan ang Free Trial
+                                        Sign In to Dashboard
                                         <ArrowRightIcon className="h-5 w-5" />
                                     </Link>
                                     <Link
@@ -271,13 +238,13 @@ export default function Welcome({ plans }: Props) {
                                         </span>
                                     </p>
                                     <Link
-                                        href="/register"
+                                        href="/login"
                                         className={`mt-6 block w-full rounded-lg py-2 text-center text-sm font-semibold ${key === 'pro'
                                             ? 'bg-white text-primary-600 hover:bg-gray-100'
                                             : 'bg-primary-600 text-white hover:bg-primary-700'
                                             }`}
                                     >
-                                        {plan.price === 0 ? 'Start Free' : 'Get Started'}
+                                        Sign In
                                     </Link>
                                 </div>
                             ))}
@@ -297,33 +264,19 @@ export default function Welcome({ plans }: Props) {
                             </p>
                             <div className="mt-10">
                                 <Link
-                                    href="/register"
+                                    href="/login"
                                     className="rounded-xl bg-primary-600 px-8 py-4 text-lg font-semibold text-white shadow-lg hover:bg-primary-700"
                                 >
-                                    Mag-register Ngayon — Libre!
+                                    Mag-login Sa Iyong Account
                                 </Link>
                             </div>
                             <p className="mt-4 text-sm text-gray-500">
-                                14-day free trial • No credit card required • Cancel anytime
+                                Contact your administrator to create an account.
                             </p>
                         </div>
                     </div>
                 </div>
-
-                {/* Footer */}
-                <footer className="bg-gray-900 py-12">
-                    <div className="mx-auto max-w-7xl px-6 lg:px-8">
-                        <div className="flex flex-col md:flex-row justify-between items-center">
-                            <div className="flex items-center">
-                                <img src={appLogo} alt="PadayON" className="h-8 object-contain brightness-0 invert" />
-                            </div>
-                            <p className="mt-4 md:mt-0 text-sm text-gray-400">
-                                © {new Date().getFullYear()} PadayON by CantiumCode. Made with 💙 in the Philippines.
-                            </p>
-                        </div>
-                    </div>
-                </footer>
             </div>
-        </>
+        </LandingLayout>
     );
 }

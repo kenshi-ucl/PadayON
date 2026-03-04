@@ -1,7 +1,7 @@
 const https = require('https');
 const { URL } = require('url');
 
-const BACKEND = 'https://doreatha-periproctal-sid.ngrok-free.dev';
+const BACKEND = 'https://unedifying-birdie-unallayably.ngrok-free.dev';
 
 module.exports = (req, res) => {
     const target = new URL(BACKEND + req.url);

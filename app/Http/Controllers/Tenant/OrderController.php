@@ -164,23 +164,35 @@ class OrderController extends Controller
         \DB::beginTransaction();
 
         try {
-            // Create refund payment record
-            Payment::create([
-                'tenant_id' => tenant()->id,
-                'order_id' => $order->id,
-                'customer_id' => $order->customer_id,
-                'user_id' => auth()->id(),
-                'payment_number' => Payment::generatePaymentNumber(tenant()->id),
-                'type' => 'refund',
-                'amount' => -$validated['amount'],
-                'fee' => 0,
-                'net_amount' => -$validated['amount'],
-                'method' => $order->payment_method,
-                'gateway' => 'manual',
-                'status' => 'completed',
-                'notes' => $validated['reason'],
-                'paid_at' => now(),
-            ]);
+            // Create refund payment record with retry for payment number collisions
+            $payment = null;
+            $maxAttempts = 5;
+            for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
+                try {
+                    $payment = Payment::create([
+                        'tenant_id' => tenant()->id,
+                        'order_id' => $order->id,
+                        'customer_id' => $order->customer_id,
+                        'user_id' => auth()->id(),
+                        'payment_number' => Payment::generatePaymentNumber(tenant()->id),
+                        'type' => 'refund',
+                        'amount' => -$validated['amount'],
+                        'fee' => 0,
+                        'net_amount' => -$validated['amount'],
+                        'method' => $order->payment_method,
+                        'gateway' => 'manual',
+                        'status' => 'completed',
+                        'notes' => $validated['reason'],
+                        'paid_at' => now(),
+                    ]);
+                    break;
+                } catch (\Illuminate\Database\QueryException $e) {
+                    if ($attempt < $maxAttempts && str_contains($e->getMessage(), 'payment_number')) {
+                        continue;
+                    }
+                    throw $e;
+                }
+            }
 
             // Update order
             $order->amount_paid -= $validated['amount'];

@@ -223,6 +223,7 @@ export interface DashboardStats {
 export interface PageProps {
     auth: {
         user: User;
+        unreadNotificationCount: number;
     };
     tenant?: Tenant;
     flash?: {
@@ -231,6 +232,47 @@ export interface PageProps {
     };
     errors?: Record<string, string>;
     [key: string]: unknown;
+}
+
+// Notification types
+export type NotificationType = 'announcement' | 'alert' | 'task';
+export type NotificationPriority = 'low' | 'normal' | 'high';
+
+export interface AppNotification {
+    id: string;
+    type: string;
+    title: string | null;
+    notification_type: NotificationType;
+    priority: NotificationPriority;
+    data: {
+        title: string;
+        body: string;
+        type: NotificationType;
+        priority: NotificationPriority;
+        sender_id: number | null;
+        sender_name: string;
+        source: 'admin' | 'owner';
+        tenant_id?: string | null;
+    };
+    read_at: string | null;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface TeamMember {
+    id: number;
+    name: string;
+    email: string;
+    is_owner: boolean;
+    avatar: string | null;
+}
+
+export interface OwnerRecipient {
+    id: number;
+    name: string;
+    email: string;
+    tenant_name: string;
+    plan: string;
 }
 
 // Cart types for POS

@@ -4,10 +4,10 @@ import { PageProps, Tenant } from '@/types';
 import {
     Bars3Icon,
     XMarkIcon,
-    BellIcon,
     ArrowRightOnRectangleIcon,
 } from '@heroicons/react/24/outline';
 import { clsx } from 'clsx';
+import NotificationBell from '@/Components/NotificationBell';
 
 // Sidebar navigation icons
 import dashboardIcon from '@/../images/dashboard.png';
@@ -83,6 +83,33 @@ export default function TenantLayout({ children, title }: TenantLayoutProps) {
                             </Link>
                         ))}
                     </nav>
+                    {/* Mobile logout - always visible at bottom */}
+                    <div className="shrink-0 border-t border-gray-200 px-4 py-4">
+                        <div className="flex items-center gap-3 px-3 mb-3">
+                            <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center">
+                                <span className="text-primary-700 font-medium text-sm">
+                                    {auth.user.name.charAt(0).toUpperCase()}
+                                </span>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-gray-900 truncate">
+                                    {auth.user.name}
+                                </p>
+                                <p className="text-xs text-gray-500 truncate">
+                                    {auth.user.email}
+                                </p>
+                            </div>
+                        </div>
+                        <Link
+                            href="/logout"
+                            method="post"
+                            as="button"
+                            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
+                        >
+                            <ArrowRightOnRectangleIcon className="h-5 w-5" />
+                            Logout
+                        </Link>
+                    </div>
                 </div>
             </div>
 
@@ -194,12 +221,7 @@ export default function TenantLayout({ children, title }: TenantLayoutProps) {
                             )}
                         </div>
                         <div className="flex items-center gap-x-4 lg:gap-x-6">
-                            <button
-                                type="button"
-                                className="-m-2.5 p-2.5 text-gray-400 hover:text-gray-500"
-                            >
-                                <BellIcon className="h-6 w-6" />
-                            </button>
+                            <NotificationBell />
                         </div>
                     </div>
                 </div>
